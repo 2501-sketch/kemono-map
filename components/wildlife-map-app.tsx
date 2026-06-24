@@ -221,6 +221,7 @@ export function WildlifeMapApp() {
   const [syncMessage, setSyncMessage] = useState("共有データベースを確認中");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [animalFilter, setAnimalFilter] = useState<AnimalType | "all">("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
@@ -440,6 +441,7 @@ export function WildlifeMapApp() {
     }
 
     setIsDeleting(true);
+    setDeleteError("");
 
     try {
       if (syncMode === "shared") {
@@ -449,6 +451,8 @@ export function WildlifeMapApp() {
       }
 
       setSelectedId(null);
+    } catch {
+      setDeleteError("削除できませんでした。FirebaseのFirestoreルールが更新されているか確認してください。");
     } finally {
       setIsDeleting(false);
     }
@@ -767,6 +771,11 @@ export function WildlifeMapApp() {
                   </div>
                 </dl>
                 <p className="mt-4 rounded-md bg-[#f8faf6] p-3 text-sm leading-6 text-[#334238]">{selectedSighting.memo}</p>
+                {deleteError ? (
+                  <p className="mt-4 rounded-md bg-rose-50 p-3 text-sm font-bold leading-6 text-rose-700">
+                    {deleteError}
+                  </p>
+                ) : null}
                 <button
                   className="mt-4 w-full rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={isDeleting}
