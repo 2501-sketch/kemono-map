@@ -3,6 +3,7 @@
 import { FormEvent, PointerEvent, WheelEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   addSharedSighting,
+  deleteSharedSighting,
   trySubscribeToSharedSightings,
   updateSharedSightingExterminationStatus
 } from "@/lib/wildlife-firestore";
@@ -219,6 +220,7 @@ export function WildlifeMapApp() {
   const [syncMode, setSyncMode] = useState<SyncMode>("checking");
   const [syncMessage, setSyncMessage] = useState("共有データベースを確認中");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [animalFilter, setAnimalFilter] = useState<AnimalType | "all">("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
@@ -251,6 +253,25 @@ export function WildlifeMapApp() {
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const mapElement = mapRef.current;
+
+    if (!mapElement) {
+      return;
+    }
+
+    const preventMapScroll = (event: globalThis.WheelEvent) => {
+      event.preventDefault();
+      moveZoom(zoom + clamp(-event.deltaY / 260, -0.45, 0.45));
+    };
+
+    mapElement.addEventListener("wheel", preventMapScroll, { passive: false });
+
+    return () => {
+      mapElement.removeEventListener("wheel", preventMapScroll);
+    };
+  }, [zoom]);
 
   useEffect(() => {
     const unsubscribe = trySubscribeToSharedSightings({
@@ -348,11 +369,6 @@ export function WildlifeMapApp() {
     }
   };
 
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    moveZoom(zoom + clamp(-event.deltaY / 260, -0.45, 0.45));
-  };
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -414,6 +430,28 @@ export function WildlifeMapApp() {
         item.id === sighting.id ? { ...item, exterminationStatus } : item
       )
     );
+  };
+
+  const handleDeleteSighting = async (sighting: Sighting) => {
+    const shouldDelete = window.confirm(`${getAnimalLabel(sighting)}の投稿を削除しますか？`);
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      if (syncMode === "shared") {
+        await deleteSharedSighting(sighting.id);
+      } else {
+        setSightings((current) => current.filter((item) => item.id !== sighting.id));
+      }
+
+      setSelectedId(null);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -532,7 +570,6 @@ export function WildlifeMapApp() {
             onPointerCancel={() => {
               dragRef.current = null;
             }}
-            onWheel={handleWheel}
             role="application"
             aria-label="投稿地点を選ぶ地図"
           >
@@ -730,6 +767,14 @@ export function WildlifeMapApp() {
                   </div>
                 </dl>
                 <p className="mt-4 rounded-md bg-[#f8faf6] p-3 text-sm leading-6 text-[#334238]">{selectedSighting.memo}</p>
+                <button
+                  className="mt-4 w-full rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={isDeleting}
+                  onClick={() => void handleDeleteSighting(selectedSighting)}
+                  type="button"
+                >
+                  {isDeleting ? "削除中" : "この投稿を削除"}
+                </button>
               </div>
             ) : (
               <p className="mt-3 text-sm text-[#5a6659]">まだ選択できる目撃情報がありません。</p>

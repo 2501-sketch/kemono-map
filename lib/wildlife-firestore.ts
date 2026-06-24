@@ -3,6 +3,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -100,4 +101,9 @@ export async function updateSharedSightingExterminationStatus(
   await updateDoc(doc(db, COLLECTION_NAME, id), {
     exterminationStatus
   });
+}
+
+export async function deleteSharedSighting(id: string) {
+  const { db } = getFirebaseServices();
+  await deleteDoc(doc(db, COLLECTION_NAME, id));
 }

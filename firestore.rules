@@ -13,7 +13,7 @@ service cloud.firestore {
         "unknown"
       ];
 
-      allow delete: if false;
+      allow delete: if true;
     }
   }
 }
