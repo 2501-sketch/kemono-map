@@ -6,8 +6,8 @@
 
 :root {
   --font-sans: "DM Sans";
-  --background: #f6f1e8;
-  --foreground: #18222d;
+  --background: #ffffff;
+  --foreground: #111111;
 }
 
 * {
@@ -15,9 +15,7 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top, rgba(255, 141, 108, 0.22), transparent 28%),
-    linear-gradient(180deg, #fff7f1 0%, #f6f1e8 100%);
+  background: #ffffff;
   color: var(--foreground);
 }
 
@@ -57,7 +55,7 @@ button {
 }
 
 .card-surface {
-  @apply rounded-[28px] border border-white/70 bg-white/85 shadow-card backdrop-blur;
+  @apply rounded-[28px] border border-black/10 bg-white shadow-card;
 }
 
 .pill-button {

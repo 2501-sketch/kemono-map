@@ -9,15 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#18222d",
-        paper: "#f6f1e8",
-        coral: "#ff8d6c",
-        gold: "#f4c95d",
-        moss: "#5e7a64",
-        blush: "#f9ddd2"
+        ink: "#111111",
+        paper: "#f5f5f5",
+        coral: "#111111",
+        gold: "#d4d4d4",
+        moss: "#111111",
+        blush: "#ededed"
       },
       boxShadow: {
-        card: "0 18px 50px rgba(24, 34, 45, 0.12)"
+        card: "0 12px 30px rgba(0, 0, 0, 0.06)"
       },
       fontFamily: {
         sans: ["var(--font-sans)", "sans-serif"]

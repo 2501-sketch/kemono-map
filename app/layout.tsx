@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Coordi Closet",
-  description: "服の登録からコーデ作成、カレンダー管理までをまとめたスマホ向けWebアプリ"
+  title: "けものマップ",
+  description: "野生動物の目撃情報を地図と時間で確認できるアプリ"
 };
 
 export const viewport: Viewport = {
@@ -11,7 +11,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#ff8d6c"
+  themeColor: "#2f6f4e"
 };
 
 export default function RootLayout({

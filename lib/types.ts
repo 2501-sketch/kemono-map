@@ -38,6 +38,7 @@ export type Outfit = {
   name: string;
   note: string;
   previewColor: string;
+  previewImageUrl?: string;
   layers: OutfitLayer[];
   createdAt: string;
   updatedAt: string;

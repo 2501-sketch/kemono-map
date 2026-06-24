@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /wildlifeSightings/{sightingId} {
+      allow read: if true;
+      allow create: if isValidSighting();
+      allow update: if request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        "exterminationStatus"
+      ]) && request.resource.data.exterminationStatus in [
+        "notCompleted",
+        "completed",
+        "unknown"
+      ];
+
+      allow delete: if false;
+    }
+  }
+}
+
+function isValidSighting() {
+  return request.resource.data.keys().hasOnly([
+    "animal",
+    "otherName",
+    "spottedAt",
+    "area",
+    "memo",
+    "danger",
+    "exterminationStatus",
+    "count",
+    "lat",
+    "lng",
+    "verified",
+    "createdAt"
+  ])
+  && request.resource.data.keys().hasAll([
+    "animal",
+    "spottedAt",
+    "area",
+    "memo",
+    "danger",
+    "exterminationStatus",
+    "count",
+    "lat",
+    "lng",
+    "verified",
+    "createdAt"
+  ])
+  && request.resource.data.animal in [
+    "snake",
+    "boar",
+    "deer",
+    "bee",
+    "bear",
+    "other"
+  ]
+  && request.resource.data.danger in [
+    "low",
+    "medium",
+    "high"
+  ]
+  && request.resource.data.exterminationStatus in [
+    "notCompleted",
+    "completed",
+    "unknown"
+  ]
+  && request.resource.data.verified in [
+    "未確認",
+    "写真あり",
+    "確認済み"
+  ]
+  && request.resource.data.area is string
+  && request.resource.data.memo is string
+  && request.resource.data.spottedAt is string
+  && request.resource.data.createdAt == request.time
+  && request.resource.data.count is number
+  && request.resource.data.count >= 1
+  && request.resource.data.lat is number
+  && request.resource.data.lat >= 33.87
+  && request.resource.data.lat <= 34.055
+  && request.resource.data.lng is number
+  && request.resource.data.lng >= 134.235
+  && request.resource.data.lng <= 134.495;
+}

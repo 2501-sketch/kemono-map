@@ -7,7 +7,7 @@ import { LoginPanel } from "@/components/sections/login-panel";
 import { OutfitStudio } from "@/components/sections/outfit-studio";
 import { SettingsSection } from "@/components/sections/settings-section";
 import { MobileNav } from "@/components/mobile-nav";
-import { formatMonthKey } from "@/lib/date";
+import { formatDateKey, formatMonthKey } from "@/lib/date";
 import { initialState } from "@/lib/mock-data";
 import { loadState, saveState } from "@/lib/storage";
 import { AppState, AppTab, ClothingItem, Outfit, OutfitLayer } from "@/lib/types";
@@ -18,7 +18,7 @@ function createLayer(itemId: string, length: number, position?: { x: number; y: 
     itemId,
     x: position?.x ?? 24 + length * 18,
     y: position?.y ?? 24 + length * 28,
-    scale: 1,
+    scale: 1.45,
     rotation: length % 2 === 0 ? -4 : 4,
     zIndex: length + 1
   };
@@ -44,11 +44,37 @@ function createItemFromFile(
   };
 }
 
+function cloneOutfitSnapshot(outfit: Outfit) {
+  const timestamp = Date.now();
+
+  return {
+    ...outfit,
+    id: `outfit-${timestamp}`,
+    name: outfit.name.trim() || "名前なしコーデ",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    layers: outfit.layers.map((layer, index) => ({
+      ...layer,
+      id: `layer-${timestamp}-${index}`
+    }))
+  };
+}
+
+function upsertCalendarEntry(
+  entries: AppState["calendarEntries"],
+  nextEntry: AppState["calendarEntries"][number]
+) {
+  return entries.some((entry) => entry.date === nextEntry.date)
+    ? entries.map((entry) => (entry.date === nextEntry.date ? nextEntry : entry))
+    : [...entries, nextEntry];
+}
+
 export function AppShell() {
   const [state, setState] = useState<AppState>(initialState);
   const [activeTab, setActiveTab] = useState<AppTab>("home");
   const [hydrated, setHydrated] = useState(false);
   const [currentMonth] = useState(() => formatMonthKey(new Date()));
+  const [registerDate, setRegisterDate] = useState(() => formatDateKey(new Date()));
   const [selectedOutfitId, setSelectedOutfitId] = useState(initialState.outfits[0].id);
   const [studioHistory, setStudioHistory] = useState<Record<string, Outfit[]>>({});
 
@@ -196,23 +222,42 @@ export function AppShell() {
             <CalendarSection
               currentMonth={currentMonth}
               entries={state.calendarEntries}
+              items={state.items}
               outfits={state.outfits}
+              onDeleteEntry={(date) =>
+                setState((current) => ({
+                  ...current,
+                  calendarEntries: current.calendarEntries.filter((entry) => entry.date !== date)
+                }))
+              }
               onSaveEntry={(date, outfitId, memo) =>
                 setState((current) => {
                   const existing = current.calendarEntries.find((entry) => entry.date === date);
+                  const sourceOutfit = current.outfits.find((outfit) => outfit.id === outfitId);
+                  const shouldClone = Boolean(
+                    sourceOutfit && (!existing || existing.outfitId !== outfitId)
+                  );
+                  const snapshot = sourceOutfit && shouldClone ? cloneOutfitSnapshot(sourceOutfit) : null;
                   const nextEntry = {
                     date,
-                    outfitId,
+                    outfitId: snapshot?.id ?? outfitId,
                     memo
                   };
 
                   return {
                     ...current,
-                    calendarEntries: existing
-                      ? current.calendarEntries.map((entry) => (entry.date === date ? nextEntry : entry))
-                      : [...current.calendarEntries, nextEntry]
+                    outfits: snapshot ? [...current.outfits, snapshot] : current.outfits,
+                    calendarEntries: upsertCalendarEntry(current.calendarEntries, nextEntry)
                   };
                 })
+              }
+              onUpdateOutfitMeta={(outfitId, updates) =>
+                setState((current) => ({
+                  ...current,
+                  outfits: current.outfits.map((outfit) =>
+                    outfit.id === outfitId ? { ...outfit, ...updates } : outfit
+                  )
+                }))
               }
             />
           )}
@@ -283,7 +328,17 @@ export function AppShell() {
               canUndo={canUndoStudio}
               items={state.items}
               outfits={state.outfits}
+              registerDate={registerDate}
               selectedOutfit={selectedOutfit}
+              onChangeRegisterDate={setRegisterDate}
+              onChangeOutfitMeta={(updates) =>
+                setState((current) => ({
+                  ...current,
+                  outfits: current.outfits.map((outfit) =>
+                    outfit.id === selectedOutfit.id ? { ...outfit, ...updates } : outfit
+                  )
+                }))
+              }
               onSelectOutfit={setSelectedOutfitId}
               onDeleteLayer={(layerId) =>
                 applyToSelectedOutfit((outfit) => ({
@@ -298,6 +353,26 @@ export function AppShell() {
                   updatedAt: new Date().toISOString(),
                   layers: [...outfit.layers, createLayer(itemId, outfit.layers.length, position)]
                 }))
+              }
+              onRegisterToCalendar={() =>
+                setState((current) => {
+                  const sourceOutfit =
+                    current.outfits.find((outfit) => outfit.id === selectedOutfit.id) ?? selectedOutfit;
+                  const snapshot = cloneOutfitSnapshot(sourceOutfit);
+                  const nextEntry = {
+                    date: registerDate,
+                    outfitId: snapshot.id,
+                    memo:
+                      current.calendarEntries.find((entry) => entry.date === registerDate)?.memo ||
+                      selectedOutfit.note
+                  };
+
+                  return {
+                    ...current,
+                    outfits: [...current.outfits, snapshot],
+                    calendarEntries: upsertCalendarEntry(current.calendarEntries, nextEntry)
+                  };
+                })
               }
               onUpdateLayer={(layerId, updater) =>
                 applyToSelectedOutfit((outfit) => ({
@@ -314,6 +389,7 @@ export function AppShell() {
                     outfit.id === selectedOutfit.id
                       ? {
                           ...outfit,
+                          name: outfit.name.trim() || "名前なしコーデ",
                           updatedAt: new Date().toISOString()
                         }
                       : outfit

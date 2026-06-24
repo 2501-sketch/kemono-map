@@ -5,10 +5,14 @@ type OutfitStudioProps = {
   canUndo: boolean;
   items: ClothingItem[];
   outfits: Outfit[];
+  registerDate: string;
   selectedOutfit: Outfit;
+  onChangeRegisterDate: (date: string) => void;
+  onChangeOutfitMeta: (updates: Pick<Outfit, "name" | "note">) => void;
   onDeleteLayer: (layerId: string) => void;
   onSelectOutfit: (outfitId: string) => void;
   onAddLayer: (itemId: string, position?: { x: number; y: number }) => void;
+  onRegisterToCalendar: () => void;
   onUpdateLayer: (layerId: string, updater: (layer: OutfitLayer) => OutfitLayer) => void;
   onUndo: () => void;
   onSaveOutfit: () => void;
@@ -43,16 +47,21 @@ export function OutfitStudio({
   canUndo,
   items,
   outfits,
+  registerDate,
   selectedOutfit,
+  onChangeRegisterDate,
+  onChangeOutfitMeta,
   onDeleteLayer,
   onSelectOutfit,
   onAddLayer,
+  onRegisterToCalendar,
   onUpdateLayer,
   onUndo,
   onSaveOutfit
 }: OutfitStudioProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [dragState, setDragState] = useState<PointerDrag | null>(null);
+  const [saveNotice, setSaveNotice] = useState("");
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(selectedOutfit.layers.at(-1)?.id ?? null);
   const orderedLayers = selectedOutfit.layers.slice().sort((a, b) => a.zIndex - b.zIndex);
   const itemMap = useMemo(
@@ -143,6 +152,15 @@ export function OutfitStudio({
     };
   }, [dragState, onAddLayer, onUpdateLayer]);
 
+  useEffect(() => {
+    if (!saveNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => setSaveNotice(""), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [saveNotice]);
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
@@ -151,25 +169,32 @@ export function OutfitStudio({
           <h2 className="mt-2 text-2xl font-bold text-ink">コーデ作成</h2>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            className={`pill-button border border-ink/10 ${
-              canUndo ? "bg-white text-ink hover:bg-paper" : "cursor-not-allowed bg-white/60 text-ink/30"
-            }`}
-            disabled={!canUndo}
-            onClick={onUndo}
-            type="button"
-          >
-            元に戻す
-          </button>
+          {canUndo ? (
+            <button
+              className="pill-button border border-ink/10 bg-white text-ink hover:bg-paper"
+              onClick={onUndo}
+              type="button"
+            >
+              元に戻す
+            </button>
+          ) : (
+            <span className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-ink/45">
+              編集すると元に戻せます
+            </span>
+          )}
           <button
             className="pill-button bg-coral text-white hover:opacity-90"
-            onClick={onSaveOutfit}
+            onClick={() => {
+              onSaveOutfit();
+              setSaveNotice("保存しました");
+            }}
             type="button"
           >
             保存する
           </button>
         </div>
       </div>
+      {saveNotice ? <p className="text-sm font-semibold text-moss">{saveNotice}</p> : null}
 
       <div className="card-surface p-4">
         <div className="flex gap-2 overflow-x-auto scrollbar-hidden">
@@ -177,7 +202,7 @@ export function OutfitStudio({
             <button
               key={outfit.id}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                outfit.id === selectedOutfit.id ? "bg-ink text-white" : "bg-paper text-ink/70"
+                outfit.id === selectedOutfit.id ? "bg-ink text-white" : "bg-white text-ink/70 border border-black/10"
               }`}
               onClick={() => onSelectOutfit(outfit.id)}
               type="button"
@@ -188,14 +213,70 @@ export function OutfitStudio({
         </div>
       </div>
 
+      <div className="card-surface p-4">
+        <div className="grid gap-3">
+          <div>
+            <p className="text-sm font-bold text-ink">コーデ名</p>
+            <input
+              className="mt-2 w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none focus:border-coral"
+              onChange={(event) =>
+                onChangeOutfitMeta({
+                  name: event.target.value,
+                  note: selectedOutfit.note
+                })
+              }
+              placeholder="たとえば 春のおでかけ"
+              value={selectedOutfit.name}
+            />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-ink">メモ</p>
+            <textarea
+              className="mt-2 min-h-24 w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none focus:border-coral"
+              onChange={(event) =>
+                onChangeOutfitMeta({
+                  name: selectedOutfit.name,
+                  note: event.target.value
+                })
+              }
+              placeholder="このコーデのポイント"
+              value={selectedOutfit.note}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="card-surface p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+          <div className="flex-1">
+            <p className="text-sm font-bold text-ink">登録したい日付</p>
+            <input
+              className="mt-2 w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none focus:border-coral"
+              onChange={(event) => onChangeRegisterDate(event.target.value)}
+              type="date"
+              value={registerDate}
+            />
+          </div>
+          <button
+            className="pill-button bg-ink text-white hover:bg-ink/90"
+            onClick={() => {
+              onRegisterToCalendar();
+              setSaveNotice("カレンダーに登録しました");
+            }}
+            type="button"
+          >
+            この日付に登録
+          </button>
+        </div>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[1.7fr_0.8fr]">
         <div className="card-surface p-4">
           <div
             ref={canvasRef}
-            className="relative h-[540px] overflow-hidden rounded-[30px] bg-[linear-gradient(180deg,#fff9f4_0%,#f3ecdf_100%)] lg:h-[680px]"
+            className="relative mx-auto aspect-[3/4] w-full max-w-[420px] overflow-hidden rounded-[30px] border border-black/10 bg-white"
           >
-            <div className="absolute inset-x-8 top-6 h-24 rounded-full bg-coral/10 blur-3xl" />
-            <div className="absolute inset-5 rounded-[26px] border border-dashed border-ink/10" />
+            <div className="absolute inset-5 rounded-[26px] border border-dashed border-black/10" />
             {orderedLayers.map((layer) => {
               const item = itemMap.get(layer.itemId);
 
@@ -203,7 +284,7 @@ export function OutfitStudio({
                 <button
                   key={layer.id}
                   className={`absolute touch-none overflow-visible bg-transparent text-center text-sm font-bold text-ink transition hover:scale-[1.01] ${
-                    selectedLayerId === layer.id ? "drop-shadow-[0_0_0.6rem_rgba(255,141,108,0.55)]" : ""
+                    selectedLayerId === layer.id ? "drop-shadow-[0_0_0.4rem_rgba(0,0,0,0.35)]" : ""
                   }`}
                   onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
                     const bounds = event.currentTarget.getBoundingClientRect();
@@ -237,7 +318,7 @@ export function OutfitStudio({
                   ) : (
                     <div
                       className={`flex h-full w-full items-center justify-center px-3 ${
-                        selectedLayerId === layer.id ? "rounded-[28px] ring-2 ring-coral/35" : ""
+                        selectedLayerId === layer.id ? "rounded-[28px] ring-2 ring-black/30" : ""
                       }`}
                       style={{
                         background: `linear-gradient(160deg, ${item?.color ?? "#ddd"} 0%, rgba(255,255,255,0.95) 100%)`
@@ -251,7 +332,7 @@ export function OutfitStudio({
             })}
             {selectedLayer && (
               <div className="absolute bottom-4 left-4 right-4 z-20">
-                <div className="mx-auto flex max-w-sm items-center justify-between rounded-full border border-white/80 bg-white/92 px-3 py-2 shadow-lg backdrop-blur">
+                <div className="mx-auto flex max-w-sm items-center justify-between rounded-full border border-black/10 bg-white px-3 py-2 shadow-lg">
                   <div className="min-w-0 px-2">
                     <p className="truncate text-sm font-bold text-ink">
                       {layerLabel(selectedLayerItem)}
@@ -310,7 +391,7 @@ export function OutfitStudio({
               {items.map((item) => (
                 <button
                   key={item.id}
-                  className="rounded-[24px] border border-ink/10 p-3 text-left transition hover:border-coral/40 hover:bg-coral/5"
+                  className="rounded-[24px] border border-ink/10 p-3 text-left transition hover:border-black/30 hover:bg-paper"
                   onPointerDown={(event: PointerEvent<HTMLButtonElement>) =>
                     setDragState({
                       type: "palette",
@@ -323,7 +404,7 @@ export function OutfitStudio({
                   }
                   type="button"
                 >
-                  <div className="flex h-20 items-center justify-center overflow-hidden rounded-[18px] bg-[linear-gradient(160deg,#fbf6ee_0%,#f0e7d7_100%)]">
+                  <div className="flex h-20 items-center justify-center overflow-hidden rounded-[18px] bg-white">
                     {item.imageUrl ? (
                       <img
                         alt={item.name}
@@ -358,7 +439,7 @@ export function OutfitStudio({
                   <div
                     key={layer.id}
                     className={`rounded-[24px] p-3 ${
-                      selectedLayerId === layer.id ? "bg-coral/14 ring-1 ring-coral/30" : "bg-paper"
+                      selectedLayerId === layer.id ? "bg-black/5 ring-1 ring-black/20" : "bg-paper"
                     }`}
                   >
                     <div className="flex items-center justify-between">
