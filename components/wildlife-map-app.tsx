@@ -163,6 +163,11 @@ function getAnimalLabel(sighting: Pick<Sighting, "animal" | "otherName">) {
   return animalMeta[sighting.animal].label;
 }
 
+function escapeCsvCell(value: string | number) {
+  const text = String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 function MapPin({
   color,
   label,
@@ -458,6 +463,55 @@ export function WildlifeMapApp() {
     }
   };
 
+  const handleExportCsv = () => {
+    const headers = [
+      "目撃日時",
+      "動物",
+      "場所",
+      "数",
+      "危険度",
+      "駆除状況",
+      "確認状況",
+      "状況メモ",
+      "緯度",
+      "経度",
+      "登録日時"
+    ];
+    const rows = [...sightings]
+      .sort((a, b) => new Date(b.spottedAt).getTime() - new Date(a.spottedAt).getTime())
+      .map((sighting) => [
+        sighting.spottedAt,
+        getAnimalLabel(sighting),
+        sighting.area,
+        sighting.count,
+        dangerMeta[sighting.danger].label,
+        exterminationMeta[sighting.exterminationStatus].label,
+        sighting.verified,
+        sighting.memo,
+        sighting.lat,
+        sighting.lng,
+        sighting.createdAt
+      ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
+      .join("\r\n");
+    const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const date = new Intl.DateTimeFormat("ja-JP", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    })
+      .format(new Date())
+      .replaceAll("/", "-");
+
+    link.href = url;
+    link.download = `けものマップ_${date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="min-h-screen bg-[#f7f8f2] text-[#172018]">
       <div className="mx-auto grid min-h-screen max-w-7xl gap-5 px-4 py-4 lg:grid-cols-[280px_minmax(0,1fr)_340px] lg:px-6">
@@ -479,6 +533,17 @@ export function WildlifeMapApp() {
             >
               {syncMessage}
             </div>
+            <button
+              className="mt-3 w-full rounded-md border border-[#aebba8] bg-white px-3 py-2 text-sm font-bold text-[#2f6f4e] transition hover:bg-[#f1f6ed] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={syncMode === "checking" || sightings.length === 0}
+              onClick={handleExportCsv}
+              type="button"
+            >
+              CSVを書き出す
+            </button>
+            <p className="mt-2 text-xs leading-5 text-[#5a6659]">
+              全{sightings.length}件をGoogleスプレッドシートで開ける形式にします。
+            </p>
           </section>
 
           <section className="rounded-lg border border-[#d8ddcf] bg-white p-4 shadow-card">
